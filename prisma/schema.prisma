@@ -1,0 +1,157 @@
+// LIFEX Mobile Clinic — Prisma Schema (Simplified)
+// No patient accounts — guest bookings only
+// One admin user manages everything
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING    // new booking, awaiting confirmation
+  CONFIRMED  // clinic confirmed the appointment
+  COMPLETED  // consultation done
+  CANCELLED  // cancelled by either party
+}
+
+enum SpecialRequestType {
+  HOME_VISIT
+  HOSPITAL_ASSIST
+  MEDICAL_TOURISM
+}
+
+enum SpecialRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+// Admin / clinic staff user (single account)
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  healthTips   HealthTip[]
+}
+
+// Guest appointment booking (no patient account required)
+model Appointment {
+  id             String            @id @default(cuid())
+
+  // Guest contact info
+  guestName      String
+  guestEmail     String
+  guestPhone     String
+  guestGender    String?
+  guestCountry   String?
+  numberOfPeople Int               @default(1)
+
+  // Appointment details
+  serviceTypeId  String
+  serviceType    ServiceType       @relation(fields: [serviceTypeId], references: [id])
+  slotDatetime   DateTime
+  status         AppointmentStatus @default(PENDING)
+
+  // Notes
+  guestNotes     String?           // patient's message / special instructions
+  staffNotes     String?           // internal clinic notes
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+// Clinic services catalogue
+model ServiceType {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  durationMin  Int           @default(30)
+  price        Int?          // price in kobo (÷100 = Naira); null = price on request
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  appointments Appointment[]
+}
+
+// Special service requests (guest submission, no account needed)
+model SpecialRequest {
+  id           String               @id @default(cuid())
+
+  // Guest contact info
+  guestName    String
+  guestEmail   String
+  guestPhone   String
+
+  type         SpecialRequestType
+  status       SpecialRequestStatus @default(PENDING)
+  details      Json                 // flexible: address, preferredDate, destination, etc.
+
+  staffNotes   String?
+  quotedPrice  Int?                 // in kobo
+
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+// Health tips / blog (admin-authored, public-visible)
+model HealthTip {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  category    String?
+  imageUrl    String?
+  isPublished Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+}
+
+// Clinic-wide settings (single row)
+model ClinicSettings {
+  id            String   @id @default(cuid())
+  clinicName    String   @default("LIFEX Mobile Clinic")
+  tagline       String?
+  address       String?
+  phone         String?
+  email         String?
+  whatsapp      String?
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+  logoUrl       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Price guide for special request types
+model SpecialRequestPricing {
+  id       String             @id @default(cuid())
+  type     SpecialRequestType @unique
+  minPrice Int                // in kobo
+  maxPrice Int                // in kobo
+}
