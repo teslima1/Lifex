@@ -85,7 +85,7 @@ export default function BookPage() {
   });
 
   const set = (k: keyof typeof form, v: string) =>
-    setForm((f) => {
+    setForm((f: typeof defaultForm) => {
       const next = { ...f, [k]: v };
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
       return next;
