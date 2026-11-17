@@ -108,7 +108,7 @@ export default function BookPage() {
         const { data } = await axios.get(`/api/appointments/lookup?phone=${encodeURIComponent(val)}`);
         if (data.data) {
           const p = data.data;
-          setForm((f) => {
+          setForm((f: typeof defaultForm) => {
             const next = {
               ...f,
               title:     p.title     || "",
